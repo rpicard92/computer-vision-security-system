@@ -46,7 +46,8 @@ count = 1
 
 # loop over the frames from the video stream
 while True:
-        if(count == 100):
+        time.sleep(.1)
+        if(count == 50):
             break
 	# grab the frame from the threaded video stream and resize it
 	# to have a maximum width of 400 pixels
@@ -66,7 +67,11 @@ while True:
 
 	# update the FPS counter
 	fps.update()
-	
+
+# do a bit of cleanup
+cv2.destroyAllWindows()
+vs.stop()
+
 detectFrameArray=[]
 
 for frame in frameArray:
@@ -105,19 +110,25 @@ for frame in frameArray:
                     cv2.putText(frame, label, (startX, y),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[idx], 2)
 
-    # show the output frame
-    cv2.imshow("Frame", frame)
-    key = cv2.waitKey(1) & 0xFF
+    detectFrameArray.append(frame)
 
     # if the `q` key was pressed, break from the loop
     if key == ord("q"):
             break
+        
+for frame in detectFrameArray:
+    
+    # show the output frame
+    cv2.imshow("Frame", frame)
+    key = cv2.waitKey(1) & 0xFF
+    time.sleep(.1)
+    # if the `q` key was pressed, break from the loop
+    if key == ord("q"):
+            break
+
 
 # stop the timer and display FPS information
 fps.stop()
 print("[INFO] elapsed time: {:.2f}".format(fps.elapsed()))
 print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
 
-# do a bit of cleanup
-cv2.destroyAllWindows()
-vs.stop()
