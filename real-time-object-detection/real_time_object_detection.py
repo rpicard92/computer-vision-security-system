@@ -47,7 +47,7 @@ count = 1
 # loop over the frames from the video stream
 while True:
         time.sleep(.1)
-        if(count == 50):
+        if(count == 10):
             break
 	# grab the frame from the threaded video stream and resize it
 	# to have a maximum width of 400 pixels
@@ -115,13 +115,22 @@ for frame in frameArray:
     # if the `q` key was pressed, break from the loop
     if key == ord("q"):
             break
-        
+    
+fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
+writer = None
+
 for frame in detectFrameArray:
+    if writer is None:
+        (h, w) = frame.shape[:2]
+        writer = cv2.VideoWriter('test.mp4',fourcc,20,(w, h),True)
+        
     
     # show the output frame
     cv2.imshow("Frame", frame)
     key = cv2.waitKey(1) & 0xFF
     time.sleep(.1)
+    writer.write(frame);   
+    
     # if the `q` key was pressed, break from the loop
     if key == ord("q"):
             break
