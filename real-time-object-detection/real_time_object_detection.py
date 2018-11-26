@@ -20,6 +20,8 @@ ap.add_argument("-c", "--confidence", type=float, default=0.2,
 	help="minimum probability to filter weak detections")
 ap.add_argument("-t", "--picamera", type=int, default=-1,
 	help="whether or not the Raspberry Pi camera should be used")
+ap.add_argument("-f", "--time",type=int, default=3,
+	help="time in seconds")
 args = vars(ap.parse_args())
 
 # initialize the list of class labels MobileNet SSD was trained to
@@ -44,10 +46,12 @@ fps = FPS().start()
 frameArray = []
 count = 1
 
+frames = args['time']/0.1
+
 # loop over the frames from the video stream
 while True:
         time.sleep(.1)
-        if(count == 10):
+        if(count == frames):
             break
 	# grab the frame from the threaded video stream and resize it
 	# to have a maximum width of 400 pixels
@@ -58,12 +62,12 @@ while True:
         print(count)
 
 	# show the output frame
-	cv2.imshow("Frame", frame)
-	key = cv2.waitKey(1) & 0xFF
+	#cv2.imshow("Frame", frame)
+	#key = cv2.waitKey(1) & 0xFF
 
 	# if the `q` key was pressed, break from the loop
-	if key == ord("q"):
-		break
+	#if key == ord("q"):
+	#	break
 
 	# update the FPS counter
 	fps.update()
@@ -74,7 +78,11 @@ vs.stop()
 
 detectFrameArray=[]
 
+count = 0
+
 for frame in frameArray:
+
+    time.sleep(1.0)
     # grab the frame dimensions and convert it to a blob
     (h, w) = frame.shape[:2]
     blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)),
@@ -110,11 +118,13 @@ for frame in frameArray:
                     cv2.putText(frame, label, (startX, y),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[idx], 2)
 
+    count = count + 1
+    print(count)
     detectFrameArray.append(frame)
 
     # if the `q` key was pressed, break from the loop
-    if key == ord("q"):
-            break
+    #if key == ord("q"):
+    #       break
     
 fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
 writer = None
@@ -122,18 +132,18 @@ writer = None
 for frame in detectFrameArray:
     if writer is None:
         (h, w) = frame.shape[:2]
-        writer = cv2.VideoWriter('test.mp4',fourcc,20,(w, h),True)
+        writer = cv2.VideoWriter('test.avi',fourcc,20,(w, h),True)
         
     
     # show the output frame
-    cv2.imshow("Frame", frame)
-    key = cv2.waitKey(1) & 0xFF
+    #cv2.imshow("Frame", frame)
+    #key = cv2.waitKey(1) & 0xFF
     time.sleep(.1)
     writer.write(frame);   
     
     # if the `q` key was pressed, break from the loop
-    if key == ord("q"):
-            break
+    #if key == ord("q"):
+    #        break
 
 
 # stop the timer and display FPS information
