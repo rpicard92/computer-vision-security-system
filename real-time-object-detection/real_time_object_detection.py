@@ -10,6 +10,9 @@ import imutils
 import time
 import cv2
 
+# Start Time
+startTime = time.time()
+
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-p", "--prototxt", required=True,
@@ -18,10 +21,14 @@ ap.add_argument("-m", "--model", required=True,
 	help="path to Caffe pre-trained model")
 ap.add_argument("-c", "--confidence", type=float, default=0.2,
 	help="minimum probability to filter weak detections")
-ap.add_argument("-t", "--picamera", type=int, default=-1,
+ap.add_argument("-r", "--picamera", type=int, default=1,
 	help="whether or not the Raspberry Pi camera should be used")
-ap.add_argument("-f", "--time",type=int, default=3,
+ap.add_argument("-t", "--time",type=int, default=3,
 	help="time in seconds")
+ap.add_argument("-o", "--outputPath", default='test.avi',
+	help="output video file path")
+ap.add_argument("-f", "--detections", type=int, default=0,
+	help="0 will only detect people, 1 will detect all the net is capable of")
 args = vars(ap.parse_args())
 
 # initialize the list of class labels MobileNet SSD was trained to
@@ -37,52 +44,68 @@ print("[INFO] loading model...")
 net = cv2.dnn.readNetFromCaffe(args["prototxt"], args["model"])
 
 # initialize the video stream, allow the cammera sensor to warmup,
-# and initialize the FPS counter
 print("[INFO] starting video stream...")
 vs = VideoStream(usePiCamera=args["picamera"] > 0).start()
 time.sleep(2.0)
-fps = FPS().start()
-
-frameArray = []
-count = 1
-
-frames = args['time']/0.1
 
 # loop over the frames from the video stream
+frameCount = None
+originalFrameArray = None
+numberOfFrames = None
 while True:
-        time.sleep(.1)
-        if(count == frames):
+
+        # initialize frame count
+        if frameCount is None:
+                frameCount = 0
+
+        # initialize array
+        if originalFrameArray is None:
+                originalFrameArray = []
+
+        # initialize  number of frames
+        if numberOfFrames is None:
+                numberOfFrames = args['time']/0.1
+
+        if(frameCount == numberOfFrames):
             break
-	# grab the frame from the threaded video stream and resize it
+
+        # collect frame every 0.1 seconds
+        time.sleep(.1)
+	
+        # grab the frame from the threaded video stream and resize it
 	# to have a maximum width of 400 pixels
 	frame = vs.read()
 	frame = imutils.resize(frame, width=400)
-        frameArray.append(frame)
-        count = count + 1
-        print(count)
+        frame = imutils.rotate_bound(frame, 270)
 
-	# show the output frame
-	#cv2.imshow("Frame", frame)
-	#key = cv2.waitKey(1) & 0xFF
+        # store frame
+        originalFrameArray.append(frame)
+        frameCount = frameCount + 1
+        
+        # logger
+        print('Time: ' + str(time.time()) + ', Frames Collected: ' + str(frameCount))
 
-	# if the `q` key was pressed, break from the loop
-	#if key == ord("q"):
-	#	break
-
-	# update the FPS counter
-	fps.update()
 
 # do a bit of cleanup
 cv2.destroyAllWindows()
 vs.stop()
 
-detectFrameArray=[]
+# loop through frames and find detections
+frameCount = None
+detectedFrameArray=None
+for frame in originalFrameArray:
+    
+    # initialize frame count
+    if frameCount is None:
+            frameCount = 0
 
-count = 0
+    # initialize array
+    if detectedFrameArray is None:
+            detectedFrameArray = []
 
-for frame in frameArray:
-
+    # let the processor cool to prevent crashes
     time.sleep(1.0)
+
     # grab the frame dimensions and convert it to a blob
     (h, w) = frame.shape[:2]
     blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)),
@@ -112,42 +135,65 @@ for frame in frameArray:
                     # draw the prediction on the frame
                     label = "{}: {:.2f}%".format(CLASSES[idx],
                             confidence * 100)
-                    cv2.rectangle(frame, (startX, startY), (endX, endY),
-                            COLORS[idx], 2)
-                    y = startY - 15 if startY - 15 > 15 else startY + 15
-                    cv2.putText(frame, label, (startX, y),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[idx], 2)
+                    print('Label: ' + str(label))
+                    
+                    if args["detections"] == 0:
+                        if 'person' in label:
+                                cv2.rectangle(frame, (startX, startY), (endX, endY),
+                                        (0,255,0), 2)
+                                y = startY - 15 if startY - 15 > 15 else startY + 15
+                                cv2.putText(frame, label, (startX, y),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+                    elif args["detections"] == 1:
+                                cv2.rectangle(frame, (startX, startY), (endX, endY),
+                                        COLORS[idx], 2)
+                                y = startY - 15 if startY - 15 > 15 else startY + 15
+                                cv2.putText(frame, label, (startX, y),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[idx], 2)
 
-    count = count + 1
-    print(count)
-    detectFrameArray.append(frame)
+    # store frame
+    detectedFrameArray.append(frame)
+    frameCount = frameCount + 1
 
-    # if the `q` key was pressed, break from the loop
-    #if key == ord("q"):
-    #       break
+    # logger
+    print('Time: ' + str(time.time()) + ', Frames Processed: ' + str(frameCount))
     
-fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
+# loop through frames and write to video
+frameCount = None
+fourcc = None
 writer = None
+for frame in detectedFrameArray:
 
-for frame in detectFrameArray:
+    # initialize frame count
+    if frameCount is None:
+            frameCount = 0
+
+    # initialize codec
+    if fourcc is None:
+        fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
+
+    # initialize writer
     if writer is None:
         (h, w) = frame.shape[:2]
         writer = cv2.VideoWriter('test.avi',fourcc,20,(w, h),True)
-        
     
     # show the output frame
     #cv2.imshow("Frame", frame)
     #key = cv2.waitKey(1) & 0xFF
-    time.sleep(.1)
+
+    # write frame to video
     writer.write(frame);   
-    
-    # if the `q` key was pressed, break from the loop
-    #if key == ord("q"):
-    #        break
 
+    # logger
+    print('Time: ' + str(time.time()) + ', Frames Written: ' + str(frameCount))
 
-# stop the timer and display FPS information
-fps.stop()
-print("[INFO] elapsed time: {:.2f}".format(fps.elapsed()))
-print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
+# end time
+endTime = time.time()
+elapsedTime = endTime - startTime
+
+# logger
+print('Number Of Frames: ' + str(numberOfFrames) + ' frames')
+print('Length Of Video : ' + str(args['time']) + ' seconds')
+print('Path To Video : ' + args['outputPath'])
+print('Elapsed Time: ' + str(elapsedTime))
 
