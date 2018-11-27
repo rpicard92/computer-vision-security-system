@@ -9,6 +9,7 @@ import argparse
 import imutils
 import time
 import cv2
+from smtp import EmailMessageBuilder
 
 # Collect frames from a video stream
 def collectFrames(VideoStream,numberOfFrames,fps):
@@ -74,7 +75,7 @@ def classifyFrame(net, confidenceThreshold, classificationType, frame, CLASSES, 
                         # If only detecting people
                         if classificationType == 0:
                                 if 'person' in label:
-                                        print('[INFO] Label: ' + str(label) + ', Timestamp: ' + str(time.time()) + 'seconds')
+                                        print('[INFO] Label: ' + str(label) + ', Timestamp: ' + str(time.time()) + ' seconds')
                                         cv2.rectangle(frame, (startX, startY), (endX, endY),
                                                 (0,255,0), 2)
                                         y = startY - 15 if startY - 15 > 15 else startY + 15
@@ -86,7 +87,7 @@ def classifyFrame(net, confidenceThreshold, classificationType, frame, CLASSES, 
                         # If detecting everything
                         elif classificationType == 1:
                                 if label == '':
-                                        print('[INFO] Label: ' + str(label) + ', Timestamp: ' + str(time.time()) + 'seconds')
+                                        print('[INFO] Label: ' + str(label) + ', Timestamp: ' + str(time.time()) + ' seconds')
                                         cv2.rectangle(frame, (startX, startY), (endX, endY),
                                                 COLORS[idx], 2)
                                         y = startY - 15 if startY - 15 > 15 else startY + 15
@@ -124,10 +125,11 @@ def classifyFrames(net,confidenceThreshold,frameArray,classificationType,CLASSES
 
 # write video from frames
 def writeVideo(frameArray,outputPath):
-        
-        frameCount = 0
+
+        # codec        
         fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
         writer = None
+        frameCount = 0
 
         # loop frames and write to video
         for frame in frameArray:
@@ -143,6 +145,20 @@ def writeVideo(frameArray,outputPath):
                
                 # logger
                 print('[INFO] Frames written: ' + str(frameCount) + ' frames' + ', Timestamp: ' + str(time.time()) + 'seconds')
+
+def emailVideo(outputPath):
+        email = ''
+        password = ''
+        subject = 'From Raspberry Pi!'
+        body = 'Test Body'
+        server = 'smtp.gmail.com'
+        port = 587
+        video = outputPath
+
+        messageBuilder = EmailMessageBuilder()
+        messageBuilder.buildMessage(email,email,subject,body,video)
+        messageBuilder.buildSMTPServer(server,port)
+        messageBuilder.sendMessage(email,password)
 
 def initVideoStream(camera):
         # initialize the video stream, allow the cammera sensor to warmup,
@@ -163,10 +179,12 @@ def run(net, confidenceThreshold, camera, timeOfClips, outputPath, classificatio
         # Start Time
         startTime = time.time()
         
+        # main logic
         numberOfFrames = timeOfClips/0.05
         frameArray = collectFrames(VideoStream,numberOfFrames,.05)
         classifiedFrameArray = classifyFrames(net, confidenceThreshold, frameArray, classificationType, CLASSES, COLORS)
         writeVideo(classifiedFrameArray,outputPath)   
+        emailVideo(outputPath)
 
         # end time
         endTime = time.time()
@@ -227,7 +245,6 @@ def main():
         timeOfClips = args['time']
         outputPath = args['outputPath']
         classificationType = args["detections"]
-
 
         # load our serialized model from disk
         print("[INFO] Loading deep deural net...")
