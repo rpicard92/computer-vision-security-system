@@ -10,6 +10,9 @@ import imutils
 import time
 import cv2
 from smtp import EmailMessageBuilder
+import pytz
+from datetime import datetime
+from tzlocal import get_localzone 
 
 # Collect frames from a video stream
 def collectFrames(VideoStream,numberOfFrames,fps):
@@ -147,10 +150,15 @@ def writeVideo(frameArray,outputPath):
                 print('[INFO] Frames written: ' + str(frameCount) + ' frames' + ', Timestamp: ' + str(time.time()) + 'seconds')
 
 def emailVideo(outputPath):
+ 
+        local_tz = get_localzone() 
+        tz = pytz.timezone(str(local_tz))
+        now = datetime.now(tz)
+
         email = ''
         password = ''
-        subject = 'From Raspberry Pi!'
-        body = 'Test Body'
+        subject = 'Security Alert From Raspberry Pi!'
+        body = str(now)
         server = 'smtp.gmail.com'
         port = 587
         video = outputPath
