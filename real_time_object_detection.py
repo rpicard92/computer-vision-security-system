@@ -13,6 +13,10 @@ from smtp import EmailMessageBuilder
 import pytz
 from datetime import datetime
 from tzlocal import get_localzone 
+import Tkinter
+import tkMessageBox
+import threading
+
 
 # Collect frames from a video stream
 def collectFrames(VideoStream,numberOfFrames,fps):
@@ -207,6 +211,7 @@ def run(net, confidenceThreshold, camera, timeOfClips, outputPath, classificatio
 
 
 def idle(net, confidenceThreshold, camera, timeOfClips, outputPath, classificationType, CLASSES, COLORS):
+        print("[INFO] System turned on.")
         print("[INFO] Initiating idle video stream...")
         VideoStream = initVideoStream(camera)
         while True:
@@ -225,6 +230,12 @@ def idle(net, confidenceThreshold, camera, timeOfClips, outputPath, classificati
                         print('[INFO] Object Detected')
                         run(net, confidenceThreshold, camera, timeOfClips, outputPath, classificationType, CLASSES, COLORS, VideoStream)
                         print("[INFO] Reinitiate idle stream.")
+                
+                global onOffSwitch
+                if (onOffSwitch == False):
+                        closeVideoStream(VideoStream)
+                        print("[INFO] System turned off.")
+                        break
 
 def main():
 
@@ -271,9 +282,24 @@ def main():
   
         idle(net, confidenceThreshold, camera, timeOfClips, outputPath, classificationType, CLASSES, COLORS)
 
-main()
 
-    
+top = Tkinter.Tk()
+
+onOffSwitch = False
+def callBack():
+        global onOffSwitch
+        if onOffSwitch == False:
+                onOffSwitch = True
+                thread = threading.Thread(target=main)  
+                thread.start() 
+                B["text"] = "ON"
+        elif onOffSwitch == True:
+                onOffSwitch = False
+                B["text"] = "OFF"
+
+B = Tkinter.Button(top, text ="OFF", command = callBack)
+B.pack()
+top.mainloop()    
 
 
 
