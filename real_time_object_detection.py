@@ -11,11 +11,13 @@ import time
 import cv2
 
 # Collect frames from a video stream
-def collectFrames(VideoStream,numberOfFrames):
-
+def collectFrames(VideoStream,numberOfFrames,fps):
+        
         count = 0
         frameArray = []
-        while count <= 2*numberOfFrames:
+
+        # collect frames
+        while count < numberOfFrames:
 
                 # grab the frame from the threaded video stream and resize it
                 # to have a maximum width of 400 pixels, rotate to correct camera angle
@@ -27,12 +29,11 @@ def collectFrames(VideoStream,numberOfFrames):
                 frameArray.append(frame)
                 count = count + 1
 
-
                 # collect frame every 0.1 seconds
                 time.sleep(.05)
 
                 # logger
-                print('Time: ' + str(time.time()) + ', Frames Collected: ' + str(count))
+                print('[INFO] Frames Collected: ' + str(count) + ' frames, Timestamp: ' + str(time.time()) + ' seconds' )
 
         return frameArray
 
@@ -69,27 +70,34 @@ def classifyFrame(net, confidenceThreshold, classificationType, frame, CLASSES, 
                         # draw the prediction on the frame
                         label = "{}: {:.2f}%".format(CLASSES[idx],
                                 confidence * 100)
-                        print('Label: ' + str(label))
 
                         # If only detecting people
                         if classificationType == 0:
                                 if 'person' in label:
+                                        print('[INFO] Label: ' + str(label) + ', Timestamp: ' + str(time.time()) + 'seconds')
                                         cv2.rectangle(frame, (startX, startY), (endX, endY),
                                                 (0,255,0), 2)
                                         y = startY - 15 if startY - 15 > 15 else startY + 15
                                         cv2.putText(frame, label, (startX, y),
                                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+                                else:
+                                        print('[INFO] Label: No detections.')
 
                         # If detecting everything
                         elif classificationType == 1:
+                                if label == '':
+                                        print('[INFO] Label: ' + str(label) + ', Timestamp: ' + str(time.time()) + 'seconds')
                                         cv2.rectangle(frame, (startX, startY), (endX, endY),
                                                 COLORS[idx], 2)
                                         y = startY - 15 if startY - 15 > 15 else startY + 15
                                         cv2.putText(frame, label, (startX, y),
                                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[idx], 2)
+                                else:
+                                        print('[INFO] Label: No detections.')
+
 
         # let the processor cool to prevent crashes
-        time.sleep(.2)
+        time.sleep(0.5)
 
         return [frame,label]
 
@@ -107,28 +115,34 @@ def classifyFrames(net,confidenceThreshold,frameArray,classificationType,CLASSES
                 # store updated frame
                 classifiedFrameArray.append(frame)
                 count = count + 1
+
                 # logger
-                print('Time: ' + str(time.time()) + ', Frames Processed: ' + str(count))
+                print('[INFO] Frames Processed: ' + str(count) + ' frames' + ', Timestamp: ' + str(time.time()) + 'seconds')
 
         return classifiedFrameArray
 
 
 # write video from frames
 def writeVideo(frameArray,outputPath):
-        # loop through frames and write to video
+        
         frameCount = 0
         fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
         writer = None
+
+        # loop frames and write to video
         for frame in frameArray:
+
                 # initialize writer
                 if writer is None:
                         (h, w) = frame.shape[:2]
                         writer = cv2.VideoWriter(outputPath,fourcc,20,(w, h),True)
+               
                 # write frame to video
                 writer.write(frame);  
                 frameCount = frameCount + 1
+               
                 # logger
-                print('Time: ' + str(time.time()) + ', Frames Written: ' + str(frameCount))
+                print('[INFO] Frames written: ' + str(frameCount) + ' frames' + ', Timestamp: ' + str(time.time()) + 'seconds')
 
 def initVideoStream(camera):
         # initialize the video stream, allow the cammera sensor to warmup,
@@ -143,35 +157,50 @@ def closeVideoStream(VideoStream):
         VideoStream.stop()
 
 
-def run(net, confidenceThreshold, camera, numberOfFrames, outputPath, classificationType, CLASSES, COLORS, VideoStream):
-        frameArray = collectFrames(VideoStream,numberOfFrames)
-        classifiedFrameArray = classifyFrames(net, confidenceThreshold, frameArray, classificationType, CLASSES, COLORS)
-        writeVideo(classifiedFrameArray,outputPath)   
-
-def idle(net, confidenceThreshold, camera, numberOfFrames, outputPath, classificationType, CLASSES, COLORS):
-        VideoStream = initVideoStream(camera)
-        while True:
-
-                # collect frame every 0.1 seconds
-                time.sleep(.1)
-
-                # grab the frame from the threaded video stream and resize it
-                # to have a maximum width of 400 pixels, rotate to correct camera angle
-                frame = VideoStream.read()
-                frame = imutils.resize(frame, width=400)
-                frame = imutils.rotate_bound(frame, 270)
-
-                [frame, label] = classifyFrame(net, confidenceThreshold, classificationType, frame, CLASSES, COLORS)
-                print(label)
-                if 'person' in label:
-                        print('PERSION DETECTED..start')
-                        run(net, confidenceThreshold, camera, numberOfFrames, outputPath, classificationType, CLASSES, COLORS, VideoStream)
-                        print('PERSION DETECTED..end')
-
-def main():
+def run(net, confidenceThreshold, camera, timeOfClips, outputPath, classificationType, CLASSES, COLORS, VideoStream):
+        print('[INFO] Initiating Recording Protocol...')
 
         # Start Time
         startTime = time.time()
+        
+        numberOfFrames = timeOfClips/0.05
+        frameArray = collectFrames(VideoStream,numberOfFrames,.05)
+        classifiedFrameArray = classifyFrames(net, confidenceThreshold, frameArray, classificationType, CLASSES, COLORS)
+        writeVideo(classifiedFrameArray,outputPath)   
+
+        # end time
+        endTime = time.time()
+        elapsedTime = endTime - startTime
+
+        # logger
+        print('[INFO] Recording Protocol Complete.')
+        print('[INFO] Number Of Frames: ' + str(numberOfFrames) + ' frames')
+        print('[INFO] Length Of Video: ' + str(timeOfClips) + ' seconds')
+        print('[INFO] Path To Video: ' + str(outputPath))
+        print('[INFO] Elapsed Time: ' + str(elapsedTime) + ' seconds')
+
+
+def idle(net, confidenceThreshold, camera, timeOfClips, outputPath, classificationType, CLASSES, COLORS):
+        print("[INFO] Initiating idle video stream...")
+        VideoStream = initVideoStream(camera)
+        while True:
+                # collect one frame
+                frameArray = collectFrames(VideoStream,1,0)
+                
+                # label the frame
+                [frame, label] = classifyFrame(net, confidenceThreshold, classificationType, frameArray[0], CLASSES, COLORS)
+                
+                # if person was detected run net
+                if 'person' in label and classificationType == 0:
+                        print('[INFO] Person detected')
+                        run(net, confidenceThreshold, camera, timeOfClips, outputPath, classificationType, CLASSES, COLORS, VideoStream)
+                        print("[INFO] Reinitiate idle stream.")
+                elif label == '' and classificationType == 1:
+                        print('[INFO] Object Detected')
+                        run(net, confidenceThreshold, camera, timeOfClips, outputPath, classificationType, CLASSES, COLORS, VideoStream)
+                        print("[INFO] Reinitiate idle stream.")
+
+def main():
 
         # construct the argument parse and parse the arguments
         ap = argparse.ArgumentParser()
@@ -201,8 +230,10 @@ def main():
 
 
         # load our serialized model from disk
-        print("[INFO] loading model...")
+        print("[INFO] Loading deep deural net...")
         net = cv2.dnn.readNetFromCaffe(prototxt, model)
+        print("[INFO] Deep deural net loaded.")
+
 
         # initialize the list of class labels MobileNet SSD was trained to
         # detect, then generate a set of bounding box colors for each class
@@ -211,21 +242,9 @@ def main():
                 "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
                 "sofa", "train", "tvmonitor"]
         COLORS = np.random.uniform(0, 255, size=(len(CLASSES), 3))
-
-        numberOfFrames = timeOfClips/0.1
         
   
-        idle(net, confidenceThreshold, camera, numberOfFrames, outputPath, classificationType, CLASSES, COLORS)
-
-        # end time
-        endTime = time.time()
-        elapsedTime = endTime - startTime
-
-        # logger
-        print('Number Of Frames: ' + str(numberOfFrames) + ' frames')
-        print('Length Of Video : ' + str(args['time']) + ' seconds')
-        print('Path To Video : ' + str(outputPath))
-        print('Elapsed Time: ' + str(elapsedTime))
+        idle(net, confidenceThreshold, camera, timeOfClips, outputPath, classificationType, CLASSES, COLORS)
 
 main()
 
