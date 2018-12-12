@@ -290,10 +290,9 @@ def main():
 def server_response(reponse):
          # pause 5.5 seconds
         print('Sleeping...')
-        time.sleep(4)   
         global PHONE
         global PORT_PHONE
-        print('[INFO] Connecting to HOST: ' + PHONE + ', on PORT: ' + PORT_PHONE)
+        print('[INFO] Connecting to HOST: ' + str(PHONE) + ', on PORT: ' + str(PORT_PHONE))
         
         # create a client socket
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -310,7 +309,7 @@ def server_response(reponse):
 def listen_client():
         global PI
         global PORT_PI
-        print('[INFO] Connecting to HOST: ' + PI + ', on PORT: ' + PORT)
+        print('[INFO] Connecting to HOST: ' + str(PI) + ', on PORT: ' + str(PORT_PI))
         
         # create a server socket
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -330,9 +329,13 @@ def listen_client():
                         if(onOffSwitch == True):
                                 onOffSwitch = False
                                 server_response('OFF')
+                                B["text"] = "OFF"
                         elif(onOffSwitch == False):
                                 onOffSwitch = True
+                                thread = threading.Thread(target=main)  
+                                thread.start() 
                                 server_response('ON')
+                                B["text"] = "ON"
         server_socket.close()
 
 
