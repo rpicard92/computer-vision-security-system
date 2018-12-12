@@ -16,6 +16,8 @@ from tzlocal import get_localzone
 import Tkinter
 import tkMessageBox
 import threading
+import socket
+import sys
 
 
 # Collect frames from a video stream
@@ -283,9 +285,60 @@ def main():
         idle(net, confidenceThreshold, camera, timeOfClips, outputPath, classificationType, CLASSES, COLORS)
 
 
-top = Tkinter.Tk()
 
-onOffSwitch = False
+
+def server_response(reponse):
+         # pause 5.5 seconds
+        print('Sleeping...')
+        time.sleep(4)   
+        global PHONE
+        global PORT_PHONE
+        print('[INFO] Connecting to HOST: ' + PHONE + ', on PORT: ' + PORT_PHONE)
+        
+        # create a client socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+                # bind socket to Host and Port
+                s.connect((PHONE, PORT_PHONE))
+        except socket.error as err:
+                print('[ERROR] Bind Failed, Error Code: ' + str(err))
+                sys.exit()
+        # send reponse
+        s.send(reponse)
+        s.close()
+
+def listen_client():
+        global PI
+        global PORT_PI
+        print('[INFO] Connecting to HOST: ' + PI + ', on PORT: ' + PORT)
+        
+        # create a server socket
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+               # bind socket to Host and Port      
+                server_socket.bind((PI, PORT_PI))
+        except socket.error as err:
+                print('[ERROR] Bind Failed, Error Code: ' + str(err))
+                sys.exit()
+        #listen(): This method sets up and start TCP listener.
+        server_socket.listen(10)
+        while True:
+                conn, addr = server_socket.accept()
+                buf = conn.recv(1024)
+                if(buf != None):
+                        global onOffSwitch
+                        if(onOffSwitch == True):
+                                onOffSwitch = False
+                                server_response('OFF')
+                        elif(onOffSwitch == False):
+                                onOffSwitch = True
+                                server_response('ON')
+        server_socket.close()
+
+
+
+
+
 def callBack():
         global onOffSwitch
         if onOffSwitch == False:
@@ -297,10 +350,22 @@ def callBack():
                 onOffSwitch = False
                 B["text"] = "OFF"
 
+# global swtich
+onOffSwitch = False
+
+# local host
+PI = 'XXX.XXX.XXX.XXX'
+PORT_PI = 8889
+ 
+# phone
+PHONE = 'XXX.XXX.XXX.XXX'
+PORT_PHONE = 8888
+
+t = threading.Thread(target=listen_client)
+t.start()
+
+top = Tkinter.Tk()
+
 B = Tkinter.Button(top, text ="OFF", command = callBack)
 B.pack()
 top.mainloop()    
-
-
-
-
