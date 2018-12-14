@@ -34,6 +34,7 @@ def collectFrames(VideoStream,numberOfFrames,fps):
                 frame = VideoStream.read()
                 frame = imutils.resize(frame, width=400)
                 frame = imutils.rotate_bound(frame, 270)
+                #frame = imutils.rotate_bound(frame, 180)
 
                 # store frame
                 frameArray.append(frame)
